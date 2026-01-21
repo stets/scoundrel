@@ -584,13 +584,12 @@ fn run_app<B: ratatui::backend::Backend>(
                     _ => {}
                 },
                 Screen::ConfirmQuit => match key.code {
-                    KeyCode::Char('y') | KeyCode::Char('Y') => {
+                    KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Char('y') | KeyCode::Char('Y') => {
                         return Ok(());
                     }
-                    KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+                    KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc | _ => {
                         game.screen = Screen::Game;
                     }
-                    _ => {}
                 },
             }
         }
@@ -1149,8 +1148,8 @@ fn render_quit_modal(f: &mut Frame) {
         Line::from(""),
         Line::from("Your progress will be lost."),
         Line::from(""),
-        Line::from("[Y] Yes, quit"),
-        Line::from("[N] No, keep playing"),
+        Line::from("[Q] Quit"),
+        Line::from("[any] Keep playing"),
     ];
 
     let quit_modal = Paragraph::new(Text::from(lines))

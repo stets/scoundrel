@@ -1,5 +1,5 @@
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, MouseEventKind, MouseButton},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -144,6 +144,7 @@ struct GameState {
     combat_card_index: Option<usize>,
     combat_selection: usize, // 0 = weapon, 1 = barehanded, 2 = back
     message: String,
+    card_areas: Vec<Rect>, // Store card positions for mouse clicks
 }
 
 impl GameState {
@@ -169,6 +170,7 @@ impl GameState {
             combat_card_index: None,
             combat_selection: 0,
             message: String::new(),
+            card_areas: Vec::new(),
         };
         state.setup_deck();
         state.log("Entered the dungeon with 20 HP".to_string());
@@ -416,9 +418,53 @@ fn run_app<B: ratatui::backend::Backend>(
     game: &mut GameState,
 ) -> io::Result<()> {
     loop {
-        terminal.draw(|f| ui(f, game))?;
+        terminal.draw(|f| ui(f, &mut *game))?;
 
-        if let Event::Key(key) = event::read()? {
+        match event::read()? {
+            Event::Mouse(mouse) => {
+                if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
+                    let x = mouse.column;
+                    let y = mouse.row;
+
+                    match game.screen {
+                        Screen::Game => {
+                            // Check if click is on a card
+                            for (idx, area) in game.card_areas.iter().enumerate() {
+                                if x >= area.x && x < area.x + area.width
+                                    && y >= area.y && y < area.y + area.height {
+                                    // Clicked on card idx
+                                    game.selected_index = idx;
+                                    if idx < game.room.len() {
+                                        let card = &game.room[idx];
+                                        if card.is_potion() {
+                                            game.play_potion(idx);
+                                        } else if card.is_weapon() {
+                                            game.play_weapon(idx);
+                                        } else {
+                                            if game.weapon.is_none() {
+                                                game.fight_monster(idx, false);
+                                            } else {
+                                                game.combat_card_index = Some(idx);
+                                                game.combat_selection = 0;
+                                                game.screen = Screen::Combat;
+                                            }
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                        Screen::Help | Screen::Log => {
+                            game.screen = Screen::Game;
+                        }
+                        Screen::ConfirmQuit => {
+                            game.screen = Screen::Game;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            Event::Key(key) => {
             if key.kind != KeyEventKind::Press {
                 continue;
             }
@@ -582,11 +628,13 @@ fn run_app<B: ratatui::backend::Backend>(
                     }
                 },
             }
+            }
+            _ => {}
         }
     }
 }
 
-fn ui(f: &mut Frame, game: &GameState) {
+fn ui(f: &mut Frame, game: &mut GameState) {
     let size = f.area();
 
     // Main layout
@@ -711,6 +759,9 @@ fn ui(f: &mut Frame, game: &GameState) {
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(cards_area);
 
+    // Clear and rebuild card areas for mouse clicks
+    game.card_areas.clear();
+
     for (row_idx, row_area) in card_rows.iter().enumerate() {
         let cards_in_row: Vec<usize> = (0..game.room.len())
             .filter(|&i| i / 2 == row_idx)
@@ -736,13 +787,18 @@ fn ui(f: &mut Frame, game: &GameState) {
             height: row_area.height,
         };
 
-        let card_areas = Layout::default()
+        let card_rects = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(card_constraints)
             .split(centered_area);
 
         for (area_idx, &card_idx) in cards_in_row.iter().enumerate() {
             if card_idx < game.room.len() {
+                // Store card area for mouse clicks (ensure correct index)
+                while game.card_areas.len() <= card_idx {
+                    game.card_areas.push(Rect::default());
+                }
+                game.card_areas[card_idx] = card_rects[area_idx];
                 let card = &game.room[card_idx];
                 let is_selected = card_idx == game.selected_index;
 
@@ -794,7 +850,7 @@ fn ui(f: &mut Frame, game: &GameState) {
                             .border_style(Style::default().fg(border_color)),
                     );
 
-                f.render_widget(card_widget, card_areas[area_idx]);
+                f.render_widget(card_widget, card_rects[area_idx]);
             }
         }
     }

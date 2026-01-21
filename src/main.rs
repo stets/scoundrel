@@ -145,6 +145,7 @@ struct GameState {
     combat_selection: usize, // 0 = weapon, 1 = barehanded, 2 = back
     message: String,
     card_areas: Vec<Rect>, // Store card positions for mouse clicks
+    combat_button_areas: Vec<Rect>, // Store combat button positions
 }
 
 impl GameState {
@@ -171,6 +172,7 @@ impl GameState {
             combat_selection: 0,
             message: String::new(),
             card_areas: Vec::new(),
+            combat_button_areas: Vec::new(),
         };
         state.setup_deck();
         state.log("Entered the dungeon with 20 HP".to_string());
@@ -449,6 +451,41 @@ fn run_app<B: ratatui::backend::Backend>(
                                             }
                                         }
                                     }
+                                    break;
+                                }
+                            }
+                        }
+                        Screen::Combat => {
+                            // Check if click is on a combat button
+                            for (idx, area) in game.combat_button_areas.iter().enumerate() {
+                                if x >= area.x && x < area.x + area.width
+                                    && y >= area.y && y < area.y + area.height {
+                                    let card_idx = game.combat_card_index.unwrap();
+                                    let card = &game.room[card_idx];
+                                    let can_use_weapon = game.can_use_weapon_on(card);
+
+                                    if can_use_weapon {
+                                        match idx {
+                                            0 => {
+                                                game.fight_monster(card_idx, true);
+                                                game.screen = Screen::Game;
+                                            }
+                                            1 => {
+                                                game.fight_monster(card_idx, false);
+                                                game.screen = Screen::Game;
+                                            }
+                                            _ => game.screen = Screen::Game,
+                                        }
+                                    } else {
+                                        match idx {
+                                            0 => {
+                                                game.fight_monster(card_idx, false);
+                                                game.screen = Screen::Game;
+                                            }
+                                            _ => game.screen = Screen::Game,
+                                        }
+                                    }
+                                    game.combat_card_index = None;
                                     break;
                                 }
                             }
@@ -819,7 +856,7 @@ fn ui(f: &mut Frame, game: &mut GameState) {
                 let effect_str = if card.is_monster() && game.can_use_weapon_on(card) {
                     let wpn = game.weapon.as_ref().unwrap();
                     let effective_dmg = (card.value() as i32 - wpn.card.value() as i32).max(0);
-                    format!("Take {} damage", effective_dmg)
+                    format!("{}-{}={} dmg", card.value(), wpn.card.value(), effective_dmg)
                 } else {
                     card.type_str()
                 };
@@ -907,17 +944,28 @@ fn ui(f: &mut Frame, game: &mut GameState) {
     }
 }
 
-fn render_combat_modal(f: &mut Frame, game: &GameState) {
-    let area = centered_rect(50, 40, f.area());
+fn render_combat_modal(f: &mut Frame, game: &mut GameState) {
+    let area = centered_rect(55, 45, f.area());
     f.render_widget(Clear, area);
 
     let card_idx = game.combat_card_index.unwrap();
     let card = &game.room[card_idx];
     let can_use_weapon = game.can_use_weapon_on(card);
 
+    // Clear button areas
+    game.combat_button_areas.clear();
+
+    // Calculate button positions within the modal
+    let inner_area = Rect {
+        x: area.x + 2,
+        y: area.y + 4,
+        width: area.width - 4,
+        height: 3,
+    };
+
     let mut lines = vec![
         Line::from(Span::styled(
-            format!("⚔️  Fighting {} (damage: {})", card.display(), card.value()),
+            format!("Fighting {} (base damage: {})", card.display(), card.value()),
             Style::default().add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
@@ -930,28 +978,33 @@ fn render_combat_modal(f: &mut Frame, game: &GameState) {
         let style_0 = if game.combat_selection == 0 {
             Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
         } else {
-            Style::default()
+            Style::default().fg(Color::Green)
         };
         let style_1 = if game.combat_selection == 1 {
             Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
         } else {
-            Style::default()
+            Style::default().fg(Color::Yellow)
         };
         let style_2 = if game.combat_selection == 2 {
             Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
         } else {
-            Style::default()
+            Style::default().fg(Color::DarkGray)
         };
 
         lines.push(Line::from(Span::styled(
-            format!("[1] 🗡️  Use weapon ({}) - take {} damage", wpn.card.display(), wpn_dmg),
+            format!("[1] Use weapon ({}) - take {} damage", wpn.card.display(), wpn_dmg),
             style_0,
         )));
         lines.push(Line::from(Span::styled(
-            format!("[2] 👊 Fight barehanded - take {} damage", card.value()),
+            format!("[2] Fight barehanded - take {} damage", card.value()),
             style_1,
         )));
-        lines.push(Line::from(Span::styled("[B] ← Back", style_2)));
+        lines.push(Line::from(Span::styled("[B/Esc] Back", style_2)));
+
+        // Store button areas (3 buttons)
+        game.combat_button_areas.push(Rect { x: inner_area.x, y: inner_area.y, width: inner_area.width, height: 1 });
+        game.combat_button_areas.push(Rect { x: inner_area.x, y: inner_area.y + 1, width: inner_area.width, height: 1 });
+        game.combat_button_areas.push(Rect { x: inner_area.x, y: inner_area.y + 2, width: inner_area.width, height: 1 });
     } else {
         if game.weapon.is_some() {
             let wpn = game.weapon.as_ref().unwrap();
@@ -966,25 +1019,30 @@ fn render_combat_modal(f: &mut Frame, game: &GameState) {
         let style_0 = if game.combat_selection == 0 {
             Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
         } else {
-            Style::default()
+            Style::default().fg(Color::Yellow)
         };
         let style_1 = if game.combat_selection == 1 {
             Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
         } else {
-            Style::default()
+            Style::default().fg(Color::DarkGray)
         };
 
         lines.push(Line::from(Span::styled(
-            format!("[1] 👊 Fight barehanded - take {} damage", card.value()),
+            format!("[1] Fight barehanded - take {} damage", card.value()),
             style_0,
         )));
-        lines.push(Line::from(Span::styled("[B] ← Back", style_1)));
+        lines.push(Line::from(Span::styled("[B/Esc] Back", style_1)));
+
+        // Store button areas (2 buttons)
+        let btn_y = if game.weapon.is_some() { inner_area.y + 2 } else { inner_area.y };
+        game.combat_button_areas.push(Rect { x: inner_area.x, y: btn_y, width: inner_area.width, height: 1 });
+        game.combat_button_areas.push(Rect { x: inner_area.x, y: btn_y + 1, width: inner_area.width, height: 1 });
     }
 
     let combat = Paragraph::new(Text::from(lines))
         .block(
             Block::default()
-                .title("Combat")
+                .title(" Combat ")
                 .borders(Borders::ALL)
                 .border_type(BorderType::Double)
                 .border_style(Style::default().fg(Color::Yellow)),

@@ -77,16 +77,6 @@ impl Card {
         self.rank
     }
 
-    fn type_emoji(&self) -> &str {
-        if self.is_monster() {
-            "👹"
-        } else if self.is_weapon() {
-            "⚔️"
-        } else {
-            "🧪"
-        }
-    }
-
     fn type_str(&self) -> String {
         if self.is_monster() {
             format!("Take {} damage", self.value())
@@ -616,7 +606,7 @@ fn ui(f: &mut Frame, game: &GameState) {
         .split(size);
 
     // Title
-    let title = Paragraph::new("🏰 SCOUNDREL 🏰")
+    let title = Paragraph::new("~ SCOUNDREL ~")
         .style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
         .alignment(Alignment::Center)
         .block(Block::default().borders(Borders::ALL).border_type(BorderType::Rounded));
@@ -635,17 +625,17 @@ fn ui(f: &mut Frame, game: &GameState) {
 
     // Health - vertically centered
     let health_pct = game.health as f32 / game.max_health as f32;
-    let (health_color, health_emoji) = if health_pct > 0.5 {
-        (Color::Green, "💚")
+    let health_color = if health_pct > 0.5 {
+        Color::Green
     } else if health_pct > 0.25 {
-        (Color::Yellow, "💛")
+        Color::Yellow
     } else {
-        (Color::Red, "❤️")
+        Color::Red
     };
     let bar_width = 10;
     let filled = (health_pct * bar_width as f32) as usize;
     let bar = format!("{}{}", "█".repeat(filled), "░".repeat(bar_width - filled));
-    let health_text = format!("{} {}/{}\n{}", health_emoji, game.health, game.max_health, bar);
+    let health_text = format!("{}/{}\n{}", game.health, game.max_health, bar);
     let health = Paragraph::new(health_text)
         .style(Style::default().fg(health_color))
         .alignment(Alignment::Center)
@@ -663,9 +653,9 @@ fn ui(f: &mut Frame, game: &GameState) {
         } else {
             "Full".to_string()
         };
-        (format!("⚔️ {}\n{}", w.card.display(), durability), Color::Yellow)
+        (format!("{}\n{}", w.card.display(), durability), Color::Yellow)
     } else {
-        ("None\nunarmed".to_string(), Color::DarkGray)
+        ("None".to_string(), Color::DarkGray)
     };
     let weapon = Paragraph::new(weapon_text)
         .style(Style::default().fg(weapon_color))
@@ -674,7 +664,7 @@ fn ui(f: &mut Frame, game: &GameState) {
     f.render_widget(weapon, stats_chunks[1]);
 
     // Dungeon
-    let dungeon_text = format!("🏰 {}\ncards left", game.dungeon.len());
+    let dungeon_text = format!("{}\ncards left", game.dungeon.len());
     let dungeon = Paragraph::new(dungeon_text)
         .style(Style::default().fg(Color::Blue))
         .alignment(Alignment::Center)
@@ -685,7 +675,7 @@ fn ui(f: &mut Frame, game: &GameState) {
     let remaining = 3 - game.cards_played_this_turn;
     let pips = format!("{}{}", "● ".repeat(remaining as usize), "○ ".repeat(game.cards_played_this_turn as usize));
     let potion_status = if game.potion_used_this_turn {
-        "🧪 used"
+        "potion used"
     } else {
         "play cards"
     };
@@ -699,7 +689,7 @@ fn ui(f: &mut Frame, game: &GameState) {
     // Slain monsters
     let slain_text = if !game.monsters_on_weapon.is_empty() {
         let slain: Vec<String> = game.monsters_on_weapon.iter().map(|c| c.display()).collect();
-        format!("☠️ Slain: {}", slain.join(", "))
+        format!("Slain: {}", slain.join(", "))
     } else {
         String::new()
     };
@@ -780,8 +770,7 @@ fn ui(f: &mut Frame, game: &GameState) {
                 };
 
                 let card_content = format!(
-                    "{} {}\n\n{}{}\n\n{}\n[{}]",
-                    card.type_emoji(),
+                    "~ {} ~\n\n{}{}\n\n{}\n[{}]",
                     card.type_label(),
                     big_rank,
                     card.suit.symbol(),

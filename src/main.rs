@@ -432,22 +432,27 @@ fn run_app<B: ratatui::backend::Backend>(
                             for (idx, area) in game.card_areas.iter().enumerate() {
                                 if x >= area.x && x < area.x + area.width
                                     && y >= area.y && y < area.y + area.height {
-                                    // Clicked on card idx
-                                    game.selected_index = idx;
                                     if idx < game.room.len() {
-                                        let card = &game.room[idx];
-                                        if card.is_potion() {
-                                            game.play_potion(idx);
-                                        } else if card.is_weapon() {
-                                            game.play_weapon(idx);
-                                        } else {
-                                            if game.weapon.is_none() {
-                                                game.fight_monster(idx, false);
+                                        // First click selects, second click plays
+                                        if game.selected_index == idx {
+                                            // Already selected - play the card
+                                            let card = &game.room[idx];
+                                            if card.is_potion() {
+                                                game.play_potion(idx);
+                                            } else if card.is_weapon() {
+                                                game.play_weapon(idx);
                                             } else {
-                                                game.combat_card_index = Some(idx);
-                                                game.combat_selection = 0;
-                                                game.screen = Screen::Combat;
+                                                if game.weapon.is_none() {
+                                                    game.fight_monster(idx, false);
+                                                } else {
+                                                    game.combat_card_index = Some(idx);
+                                                    game.combat_selection = 0;
+                                                    game.screen = Screen::Combat;
+                                                }
                                             }
+                                        } else {
+                                            // First click - just select
+                                            game.selected_index = idx;
                                         }
                                     }
                                     break;

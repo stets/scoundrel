@@ -1136,27 +1136,53 @@ fn render_gameover_modal(f: &mut Frame, game: &GameState) {
 }
 
 fn render_quit_modal(f: &mut Frame) {
-    let area = centered_rect(40, 25, f.area());
+    let area = centered_rect(50, 45, f.area());
     f.render_widget(Clear, area);
 
-    let lines = vec![
-        Line::from(""),
-        Line::from(Span::styled(
-            "Quit game?",
-            Style::default().add_modifier(Modifier::BOLD),
-        )),
-        Line::from(""),
-        Line::from("Your progress will be lost."),
-        Line::from(""),
-        Line::from("[Q] Quit"),
-        Line::from("[any] Keep playing"),
-    ];
+    let door_art = r#"
+            ▄▄▄▄▄▄▄▄▄▄▄▄▄
+          ▄█░░░░░░░░░░░░░█▄
+         ██░░░░░░░░░░░░░░░██
+         ██░░░░░░░░░░░░░░░██
+         ██░░░░░░░░░░░░░░░██
+         ██░░░░░░███░░░░░░██
+         ██░░░░░░███░░░░░░██
+         ██░░░░░░░░░░░█▀░░██
+         ██░░░░░░░░░░░░░░░██
+         ██░░░░░░░░░░░░░░░██
+         ██▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄██
+"#;
+
+    let mut lines: Vec<Line> = door_art
+        .lines()
+        .map(|l| Line::from(Span::styled(l, Style::default().fg(Color::DarkGray))))
+        .collect();
+
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        "Flee the dungeon?",
+        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+    )));
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        "Your progress will be lost.",
+        Style::default().fg(Color::DarkGray),
+    )));
+    lines.push(Line::from(""));
+    lines.push(Line::from(vec![
+        Span::styled("[Q] ", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+        Span::styled("Flee", Style::default().fg(Color::Red)),
+    ]));
+    lines.push(Line::from(vec![
+        Span::styled("[any] ", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+        Span::styled("Stay and fight", Style::default().fg(Color::Green)),
+    ]));
 
     let quit_modal = Paragraph::new(Text::from(lines))
         .alignment(Alignment::Center)
         .block(
             Block::default()
-                .title(" Confirm ")
+                .title(" ⚔️  Exit ⚔️  ")
                 .borders(Borders::ALL)
                 .border_type(BorderType::Double)
                 .border_style(Style::default().fg(Color::Yellow)),

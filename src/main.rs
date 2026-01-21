@@ -770,13 +770,23 @@ fn ui(f: &mut Frame, game: &GameState) {
                 } else {
                     format!("{} ", rank_display)
                 };
+
+                // Show effective damage for monsters when weapon is usable
+                let effect_str = if card.is_monster() && game.can_use_weapon_on(card) {
+                    let wpn = game.weapon.as_ref().unwrap();
+                    let effective_dmg = (card.value() as i32 - wpn.card.value() as i32).max(0);
+                    format!("Take {} damage", effective_dmg)
+                } else {
+                    card.type_str()
+                };
+
                 let card_content = format!(
                     "{} {}\n\n{}{}\n\n{}\n[{}]",
                     card.type_emoji(),
                     card.type_label(),
                     big_rank,
                     card.suit.symbol(),
-                    card.type_str(),
+                    effect_str,
                     card_idx + 1
                 );
 

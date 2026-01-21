@@ -1,0 +1,21 @@
+[package]
+name = "scoundrel"
+version = "0.1.0"
+edition = "2024"
+authors = ["stets"]
+description = "A terminal UI card game based on Scoundrel by Zach Gage and Kurt Bieg"
+license = "MIT"
+repository = "https://github.com/stets/scoundrel"
+keywords = ["game", "tui", "terminal", "cards", "ratatui"]
+categories = ["games", "command-line-utilities"]
+readme = "README.md"
+
+[dependencies]
+ratatui = "0.28"
+crossterm = "0.28"
+rand = "0.8"
+
+[profile.release]
+strip = true
+lto = true
+opt-level = "z"

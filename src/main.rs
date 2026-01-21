@@ -1041,41 +1041,99 @@ fn render_log_modal(f: &mut Frame, game: &GameState) {
 }
 
 fn render_gameover_modal(f: &mut Frame, game: &GameState) {
-    let area = centered_rect(50, 30, f.area());
-    f.render_widget(Clear, area);
+    if game.won {
+        // Victory screen
+        let area = centered_rect(60, 50, f.area());
+        f.render_widget(Clear, area);
 
-    let (title, color) = if game.won {
-        ("🎉 VICTORY! 🎉", Color::Green)
+        let victory_art = r#"
+    ██╗   ██╗██╗ ██████╗████████╗ ██████╗ ██████╗ ██╗   ██╗
+    ██║   ██║██║██╔════╝╚══██╔══╝██╔═══██╗██╔══██╗╚██╗ ██╔╝
+    ██║   ██║██║██║        ██║   ██║   ██║██████╔╝ ╚████╔╝
+    ╚██╗ ██╔╝██║██║        ██║   ██║   ██║██╔══██╗  ╚██╔╝
+     ╚████╔╝ ██║╚██████╗   ██║   ╚██████╔╝██║  ██║   ██║
+      ╚═══╝  ╚═╝ ╚═════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝   ╚═╝
+"#;
+
+        let mut lines: Vec<Line> = victory_art
+            .lines()
+            .map(|l| Line::from(Span::styled(l, Style::default().fg(Color::Green))))
+            .collect();
+
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "🏆 You conquered the dungeon! 🏆",
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+        )));
+        lines.push(Line::from(""));
+        lines.push(Line::from(format!("Final Score: {}", game.calculate_score())));
+        lines.push(Line::from(format!("HP Remaining: {}", game.health)));
+        lines.push(Line::from(""));
+        lines.push(Line::from("Play again? [Y/n]"));
+
+        let gameover = Paragraph::new(Text::from(lines))
+            .alignment(Alignment::Center)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Double)
+                    .border_style(Style::default().fg(Color::Green)),
+            );
+
+        f.render_widget(gameover, area);
     } else {
-        ("💀 DEFEAT 💀", Color::Red)
-    };
+        // Death screen - medieval style
+        let area = centered_rect(70, 60, f.area());
+        f.render_widget(Clear, area);
 
-    let message = if game.won {
-        "You conquered the dungeon!"
-    } else {
-        "The dungeon has claimed another soul..."
-    };
+        let death_art = r#"
+   ▄██   ▄    ▄██████▄  ▄█   ▄█       ████████▄   ▄█     ▄████████ ████████▄
+   ███   ██▄ ███    ███ ███  ███      ███   ▀███ ███    ███    ███ ███   ▀███
+   ███▄▄▄███ ███    ███ ███  ███      ███    ███ ███▌   ███    █▀  ███    ███
+   ▀▀▀▀▀▀███ ███    ███ ███  ███      ███    ███ ███▌  ▄███▄▄▄     ███    ███
+   ▄██   ███ ███    ███ ███  ███      ███    ███ ███▌ ▀▀███▀▀▀     ███    ███
+   ███   ███ ███    ███ ███  ███      ███    ███ ███    ███    █▄  ███    ███
+   ███   ███ ███    ███ ███  ███▌ ▄   ███   ▄███ ███    ███    ███ ███   ▄███
+    ▀█████▀   ▀██████▀  █▀   █████▄▄██████████▀  █▀     ██████████ ████████▀
 
-    let lines = vec![
-        Line::from(Span::styled(title, Style::default().add_modifier(Modifier::BOLD))),
-        Line::from(""),
-        Line::from(message),
-        Line::from(""),
-        Line::from(format!("Final Score: {}", game.calculate_score())),
-        Line::from(""),
-        Line::from("Play again? [Y/n]"),
-    ];
+                              ░░░░░░░░░░░░░░░░░
+                            ░░░░░░░░░░░░░░░░░░░░░
+                           ░░░░░▄▀░░░░░░░░░░▄▀░░░░
+                           ░░░░█░░▄░░░░▄░░░░█░░░░░
+                           ░░░░█░░░░░░░░░░░░█░░░░░
+                           ░░░░░▀▄░░▀▀▀░░░▄▀░░░░░░
+                            ░░░░░░░▀▀▀▀▀▀▀░░░░░░░
+"#;
 
-    let gameover = Paragraph::new(Text::from(lines))
-        .alignment(Alignment::Center)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_type(BorderType::Double)
-                .border_style(Style::default().fg(color)),
-        );
+        let mut lines: Vec<Line> = death_art
+            .lines()
+            .map(|l| Line::from(Span::styled(l, Style::default().fg(Color::Red))))
+            .collect();
 
-    f.render_widget(gameover, area);
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "The dungeon has claimed another soul...",
+            Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+        )));
+        lines.push(Line::from(""));
+        lines.push(Line::from(format!("Final Score: {}", game.calculate_score())));
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "Play again? [Y/n]",
+            Style::default().fg(Color::White),
+        )));
+
+        let gameover = Paragraph::new(Text::from(lines))
+            .alignment(Alignment::Center)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Double)
+                    .border_style(Style::default().fg(Color::Red)),
+            );
+
+        f.render_widget(gameover, area);
+    }
 }
 
 fn render_quit_modal(f: &mut Frame) {
